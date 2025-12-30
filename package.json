@@ -4,13 +4,17 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NODE_ENV=development next dev",
+    "build": "nprisma generate && prisma db push && next build",
+    "start": "NODE_ENV=production next start",
     "lint": "eslint",
     "electron:dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:start": "concurrently \"next start\" \"wait-on http://localhost:3000 && electron .\"",
-    "build:win": "next build && electron-builder --win"
+    "build:win": "next build && electron-builder --win",
+    "vercel-build": "NODE_ENV=production npm run build",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

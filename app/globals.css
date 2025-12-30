@@ -1,6 +1,70 @@
 @import "tailwindcss";
 
 :root {
+  --primary-color: #3b82f6;
+  /* Default Blue 600 */
+}
+
+@theme {
+  --color-primary: var(--primary-color);
+  --color-primary-foreground: #ffffff;
+}
+
+/* Custom Utilities for Dynamic Primary Color */
+.bg-primary {
+  background-color: var(--primary-color) !important;
+}
+
+.text-primary {
+  color: var(--primary-color) !important;
+}
+
+.border-primary {
+  border-color: var(--primary-color) !important;
+}
+
+.ring-primary {
+  --tw-ring-color: var(--primary-color) !important;
+}
+
+.hover\:bg-primary-dark:hover {
+  filter: brightness(0.85);
+}
+
+/* Global Input Improvements for Visibility - High Specificity */
+body input[type="text"],
+body input[type="date"],
+body input[type="number"],
+body input[type="email"],
+body input[type="password"],
+body select,
+body textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  /* slate-900 (very dark) */
+  border: 1px solid #94a3b8 !important;
+  /* slate-400 (visible border) */
+  opacity: 1 !important;
+  -webkit-text-fill-color: #0f172a !important;
+  /* Fix for some browsers */
+}
+
+body input::placeholder {
+  color: #64748b !important;
+  /* slate-500 */
+  opacity: 1 !important;
+}
+
+body input:focus,
+body select:focus,
+body textarea:focus {
+  border-color: var(--primary-color) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--primary-color)44 !important;
+  /* Larger shadow */
+}
+
+:root {
   --background: #ffffff;
   --foreground: #171717;
 }

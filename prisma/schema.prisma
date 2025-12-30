@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  capacity  Int
+  location  String
+  type      String     // "Amphithéâtre", "Salle TD", "Laboratoire"
+  schedules Schedule[]
+}
+
+model Cohort {
+  id        String    @id @default(cuid())
+  major     String    // Filière
+  level     String    // Niveau (L1, M2...)
+  size      Int
+  subjects  Subject[]
+
+  @@unique([major, level])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  title     String
+  cohortId  String
+  cohort    Cohort   @relation(fields: [cohortId], references: [id])
+  exams     Exam[]
+}
+
+model Exam {
+  id        String     @id @default(cuid())
+  subjectId String
+  subject   Subject    @relation(fields: [subjectId], references: [id])
+  duration  Int        // In minutes
+  type      String     // "Écrit", "Oral", "Pratique"
+  schedules Schedule[]
+
+  @@unique([subjectId, type])
+}
+
+model TimeSlot {
+  id        String     @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime
+  schedules Schedule[]
+}
+
+model PlanningSession {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  schedules Schedule[]
+}
+
+model Schedule {
+  id         String   @id @default(cuid())
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id])
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id])
+  timeSlotId String
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+  sessionId  String?
+  session    PlanningSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([examId])
+  @@index([roomId])
+  @@index([timeSlotId])
+  @@index([sessionId])
+}
+
+model Settings {
+  id           String        @id @default("default")
+  appName      String        @default("ExamPilot")
+  logoUrl      String?
+  primaryColor String        @default("#3b82f6") // blue-600
+  updatedAt    DateTime      @updatedAt
+}

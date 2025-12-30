@@ -31,14 +31,14 @@ model Subject {
   code      String   @unique
   title     String
   cohortId  String
-  cohort    Cohort   @relation(fields: [cohortId], references: [id])
+  cohort    Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
   exams     Exam[]
 }
 
 model Exam {
   id        String     @id @default(cuid())
   subjectId String
-  subject   Subject    @relation(fields: [subjectId], references: [id])
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   duration  Int        // In minutes
   type      String     // "Écrit", "Oral", "Pratique"
   schedules Schedule[]
@@ -63,13 +63,13 @@ model PlanningSession {
 model Schedule {
   id         String   @id @default(cuid())
   examId     String
-  exam       Exam     @relation(fields: [examId], references: [id])
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   roomId     String
-  room       Room     @relation(fields: [roomId], references: [id])
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   timeSlotId String
-  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
   sessionId  String?
-  session    PlanningSession? @relation(fields: [sessionId], references: [id])
+  session    PlanningSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([examId])
   @@index([roomId])

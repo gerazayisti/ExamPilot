@@ -138,9 +138,9 @@ export default function CohortsPage() {
                 description="Téléversez un fichier Excel contenant vos filières, niveaux et UE. Le système créera automatiquement les cohortes et leurs matières associées."
                 templateName="Cohortes_UE"
                 templateData={[
-                    { filiere: "Informatique", niveau: "L3", code: "INF301", ue: "Algorithmique avancée", duree: 120, type: "DS" },
-                    { filiere: "Informatique", niveau: "L3", code: "INF302", ue: "Bases de données", duree: 90, type: "DS" },
-                    { filiere: "Mathématiques", niveau: "M1", code: "MAT401", ue: "Analyse fonctionnelle", duree: 180, type: "DS" },
+                    { filiere: "Informatique", niveau: "L3", effectif: 30, code: "INF301", ue: "Algorithmique avancée", duree: 120, type: "DS" },
+                    { filiere: "Informatique", niveau: "L3", effectif: 30, code: "INF302", ue: "Bases de données", duree: 90, type: "DS" },
+                    { filiere: "Mathématiques", niveau: "M1", effectif: 28, code: "MAT401", ue: "Analyse fonctionnelle", duree: 180, type: "DS" },
                 ]}
             />
         </div>

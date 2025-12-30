@@ -7,86 +7,90 @@ import * as XLSX from "xlsx";
 import { useBranding } from "@/components/providers/BrandingProvider";
 
 interface ImportModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onImport: (data: any[]) => Promise<{ success: boolean; error?: string; count?: number }>;
-    title: string;
-    description: string;
-    templateName: string;
-    templateData: any[];
+    isOpen: boolean;
+    onClose: () => void;
+    onImport: (data: any[]) => Promise<{ success: boolean; error?: string; count?: number }>;
+    title: string;
+    description: string;
+    templateName: string;
+    templateData: any[];
 }
 
 export function ImportModal({
-    isOpen,
-    onClose,
-    onImport,
-    title,
-    description,
-    templateName,
-    templateData
+    isOpen,
+    onClose,
+    onImport,
+    title,
+    description,
+    templateName,
+    templateData
 }: ImportModalProps) {
-    const { primaryColor } = useBranding();
-    const [file, setFile] = useState<File | null>(null);
-    const [isParsing, setIsParsing] = useState(false);
-    const [isImporting, setIsImporting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [successCount, setSuccessCount] = useState<number | null>(null);
+    const { primaryColor } = useBranding();
+    const [file, setFile] = useState<File | null>(null);
+    const [isParsing, setIsParsing] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successCount, setSuccessCount] = useState<number | null>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setFile(selectedFile);
-            setError(null);
-            setSuccessCount(null);
-        }
-    };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setError(null);
+            setSuccessCount(null);
+        }
+    };
 
-    const parseAndImport = async () => {
-        if (!file) return;
+    const parseAndImport = async () => {
+        if (!file) return;
 
-        setIsParsing(true);
-        setError(null);
+        setIsParsing(true);
+        setError(null);
 
-        try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const bstr = e.target?.result;
-                    const wb = XLSX.read(bstr, { type: "binary" });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const data = XLSX.utils.sheet_to_json(ws);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const bstr = e.target?.result;
+                    const wb = XLSX.read(bstr, { type: "binary" });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const data = XLSX.utils.sheet_to_json(ws);
 
-                    if (data.length === 0) {
-                        setError("Le fichier est vide.");
-                        setIsParsing(false);
-                        return;
-                    }
+                    if (data.length === 0) {
+                        setError("Le fichier est vide.");
+                        setIsParsing(false);
+                        return;
+                    }
+                    
+                    const cleanData = JSON.parse(JSON.stringify(data));
 
-                    setIsImporting(true);
-                    const result = await onImport(data);
-                    setIsImporting(false);
-                    setIsParsing(false);
+                    setIsImporting(true);
+                    // On utilise cleanData au lieu de data
+                    const result = await onImport(cleanData); 
+                    setIsImporting(false);
+                    setIsParsing(false);
 
-                    if (result.success) {
-                        setSuccessCount(result.count || data.length);
-                        setFile(null);
-                    } else {
-                        setError(result.error || "Une erreur est survenue lors de l'importation.");
-                    }
-                } catch (err: any) {
-                    setError("Erreur lors de la lecture du fichier. Vérifiez le format.");
-                    setIsParsing(false);
-                }
-            };
-            reader.readAsBinaryString(file);
-        } catch (err: any) {
-            setError("Erreur lors de l'ouverture du fichier.");
-            setIsParsing(false);
-        }
-    };
+                    if (result.success) {
+                        setSuccessCount(result.count || data.length);
+                        setFile(null);
+                    } else {
+                        setError(result.error || "Une erreur est survenue lors de l'importation.");
+                    }
+                } catch (err: any) {
+                    console.error("Erreur lors du parsing ou de l'importation:", err);
+                    setError("Erreur lors de la lecture du fichier. Vérifiez le format.");
+                    setIsParsing(false);
+                }
+            };
+            reader.readAsBinaryString(file);
+        } catch (err: any) {
+            setError("Erreur lors de l'ouverture du fichier.");
+            setIsParsing(false);
+        }
+    };
 
-    const downloadTemplate = () => {
+    const downloadTemplate = () => {
         const ws = XLSX.utils.json_to_sheet(templateData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Modèle");

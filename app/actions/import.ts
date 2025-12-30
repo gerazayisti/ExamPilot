@@ -36,7 +36,7 @@ export async function importCohortsAndSubjects(data: any[]) {
     try {
         // Data format expected: Major, Level, Code, Title, Duration, Type
         // We group by Cohort (Major + Level)
-        const cohortsMap = new Map<string, { major: string, level: string, subjects: any[] }>();
+        const cohortsMap = new Map<string, { major: string, level: string, size: number, subjects: any[] }>();
 
         data.forEach(row => {
             const major = String(row.filiere || row.major || "").trim();
@@ -45,12 +45,16 @@ export async function importCohortsAndSubjects(data: any[]) {
             const title = String(row.ue || row.subject || row.title || "").trim();
             const duration = parseInt(row.duree || row.duration || "2");
             const type = String(row.type || "DS").trim();
+            const size = parseInt(row.effectif || row.taille || row.size || "0"); // Prise en compte de l'effectif
 
             if (!major || !level || !code) return;
 
             const key = `${major}-${level}`;
             if (!cohortsMap.has(key)) {
-                cohortsMap.set(key, { major, level, subjects: [] });
+                cohortsMap.set(key, { major, level, size: size > 0 ? size : 0, subjects: [] });
+            } else if (size > 0 && size > cohortsMap.get(key)!.size) {
+                // Si plusieurs sizes, on garde la plus grande valeur trouvée (tu peux adapter ça)
+                cohortsMap.get(key)!.size = size;
             }
             cohortsMap.get(key)!.subjects.push({ code, title, duration, type });
         });
@@ -71,7 +75,7 @@ export async function importCohortsAndSubjects(data: any[]) {
                     create: {
                         major: cohortData.major,
                         level: cohortData.level,
-                        size: 0 // Default size if not provided
+                        size: cohortData.size // utilise la vraie taille si présente
                     }
                 });
 

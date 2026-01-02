@@ -88,7 +88,7 @@ export function Sidebar() {
                             "mr-3 h-5 w-5 transition-colors",
                             pathname === "/dashboard/settings" ? "text-white" : "text-slate-500 group-hover:text-white"
                         )}
-                    />
+                    /> Paramètres
                 </Link>
 
                 <form action={logout}>

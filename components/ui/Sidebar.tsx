@@ -8,10 +8,12 @@ import {
     Users,
     BookOpen,
     CalendarDays,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    LogOut
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { logout } from "@/app/actions/auth";
 
 const navigation = [
     { name: "Vue d'ensemble", href: "/dashboard", icon: LayoutDashboard },
@@ -87,8 +89,19 @@ export function Sidebar() {
                             pathname === "/dashboard/settings" ? "text-white" : "text-slate-500 group-hover:text-white"
                         )}
                     />
-                    Paramètres
                 </Link>
+
+                <form action={logout}>
+                    <button
+                        type="submit"
+                        className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-bold text-slate-400 transition-all duration-200 shadow-sm hover:bg-slate-800 hover:text-white"
+                    >
+                        <LogOut
+                            className="mr-3 h-5 w-5 transition-colors text-slate-500 group-hover:text-white"
+                        />
+                        Se déconnecter
+                    </button>
+                </form>
 
                 <div className="px-3 pt-2">
                     <p className="text-[10px] font-medium leading-tight text-slate-500">

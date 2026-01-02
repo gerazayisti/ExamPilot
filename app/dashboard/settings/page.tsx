@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useBranding } from "@/components/providers/BrandingProvider";
-import { updateSettings } from "@/app/actions/settings";
-import { Save, Upload, Palette, CheckCircle, Loader2, Image as ImageIcon } from "lucide-react";
+import { updateSettings, getSettings } from "@/app/actions/settings";
+import { Save, Upload, Palette, CheckCircle, Loader2, Image as ImageIcon, Users } from "lucide-react";
 
 export default function SettingsPage() {
     const { primaryColor, logoUrl, appName, updateBranding } = useBranding();
@@ -15,7 +15,17 @@ export default function SettingsPage() {
         appName: appName,
         primaryColor: primaryColor,
         logoUrl: logoUrl || "",
+        examInterStudentGap: 0
     });
+
+    useEffect(() => {
+        // Fetch full settings to get the gap value which isn't in branding context
+        getSettings().then(settings => {
+            if (settings) {
+                setForm(f => ({ ...f, examInterStudentGap: settings.examInterStudentGap || 0 }));
+            }
+        });
+    }, []);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -166,11 +176,42 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
+                    {/* Exam Configuration Section */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="flex items-center text-lg font-semibold text-slate-900 border-b border-slate-100 pb-4">
+                            <Users className="mr-2 h-5 w-5" style={{ color: form.primaryColor }} />
+                            Configuration des Examens
+                        </h3>
+
+                        <div className="mt-6">
+                            <label className="block text-sm font-bold text-slate-700">
+                                Ecart entre étudiants (places vides)
+                            </label>
+                            <p className="text-xs text-slate-500 mb-2">
+                                Nombre de places à laisser vides entre deux étudiants pour éviter la triche.
+                                <br />
+                                0 = Côté à côte (capacité 100%), 1 = 1 place vide (capacité ~50%).
+                            </p>
+                            <div className="flex items-center gap-4">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="5"
+                                    value={form.examInterStudentGap}
+                                    onChange={(e) => setForm({ ...form, examInterStudentGap: parseInt(e.target.value) || 0 })}
+                                    className="block w-24 rounded-md border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                />
+                                <div className="text-sm text-slate-600">
+                                    places vides
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {feedback && (
                         <div className={`flex items-center gap-3 rounded-lg p-4 text-sm font-medium shadow-sm border ${feedback.type === "success"
-                                ? "bg-green-50 text-green-700 border-green-100"
-                                : "bg-red-50 text-red-700 border-red-100"
+                            ? "bg-green-50 text-green-700 border-green-100"
+                            : "bg-red-50 text-red-700 border-red-100"
                             }`}>
                             {feedback.type === "success" ? <CheckCircle className="h-5 w-5" /> : <Palette className="h-5 w-5" />}
                             {feedback.message}
@@ -215,7 +256,7 @@ export default function SettingsPage() {
                         </p>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

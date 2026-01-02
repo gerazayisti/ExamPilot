@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { createCohort } from "@/app/actions/cohorts";
+import { createCohort, updateCohort } from "@/app/actions/cohorts";
 import { Loader2 } from "lucide-react";
 import { useBranding } from "@/components/providers/BrandingProvider";
 
 interface CohortModalProps {
     isOpen: boolean;
     onClose: () => void;
+    cohort?: {
+        id: string;
+        major: string;
+        level: string;
+        size: number;
+    };
 }
 
 const LEVELS = ["L1", "L2", "L3", "M1", "M2", "Doctorat"];
 
-export function CohortModal({ isOpen, onClose }: CohortModalProps) {
+export function CohortModal({ isOpen, onClose, cohort }: CohortModalProps) {
     const { primaryColor } = useBranding();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,7 +28,12 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
         setIsSubmitting(true);
         setError(null);
 
-        const result = await createCohort(formData);
+        let result;
+        if (cohort) {
+            result = await updateCohort(cohort.id, formData);
+        } else {
+            result = await createCohort(formData);
+        }
 
         setIsSubmitting(false);
 
@@ -34,7 +45,7 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Ajouter une Cohorte">
+        <Modal isOpen={isOpen} onClose={onClose} title={cohort ? "Modifier la Cohorte" : "Ajouter une Cohorte"}>
             <form action={handleSubmit} className="space-y-4">
                 <div>
                     <label htmlFor="major" className="block text-sm font-medium text-slate-700">
@@ -45,6 +56,7 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
                         name="major"
                         id="major"
                         required
+                        defaultValue={cohort?.major}
                         placeholder="Ex: Informatique, Droit"
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
@@ -58,6 +70,7 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
                         name="level"
                         id="level"
                         required
+                        defaultValue={cohort?.level}
                         className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                         {LEVELS.map((lvl) => (
@@ -77,6 +90,7 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
                         name="size"
                         id="size"
                         required
+                        defaultValue={cohort?.size}
                         min="1"
                         placeholder="Ex: 350"
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -104,7 +118,7 @@ export function CohortModal({ isOpen, onClose }: CohortModalProps) {
                         style={{ backgroundColor: primaryColor }}
                     >
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Enregistrer
+                        {cohort ? "Mettre à jour" : "Enregistrer"}
                     </button>
                 </div>
             </form>

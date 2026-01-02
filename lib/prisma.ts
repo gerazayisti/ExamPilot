@@ -11,15 +11,9 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 function createPrismaClient() {
   return new PrismaClient({
-    log: process.env.NODE_ENV === "development" 
+    log: process.env.NODE_ENV === "development"
       ? ["query", "info", "warn", "error"]
       : ["warn", "error"], // En production, seulement les warnings et erreurs
-    // Options spécifiques pour la production/Neon
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL, // Assurez-vous que DATABASE_URL contient les paramètres Neon
-      },
-    },
   });
 }
 
@@ -41,7 +35,7 @@ export async function checkDatabaseConnection() {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return { connected: true };
-  } catch (error:any) {
+  } catch (error: any) {
     return { connected: false, error: error.message };
   }
 }

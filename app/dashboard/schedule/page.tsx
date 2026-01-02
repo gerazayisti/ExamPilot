@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     Calendar, Play, Loader2, Building, Clock, MapPin,
     History, LayoutGrid, List, Download, ChevronRight,
-    FileText, Table as TableIcon, AlertCircle
+    FileText, Table as TableIcon, AlertCircle, Trash2
 } from "lucide-react";
 import { generateScheduleAction } from "@/app/actions/scheduler";
-import { getSessions, getSessionSchedule } from "@/app/actions/sessions";
+import { getSessions, getSessionSchedule, deleteSession } from "@/app/actions/sessions";
 import { Modal } from "@/components/ui/Modal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -51,64 +51,160 @@ export default function SchedulePage() {
     const [endDate, setEndDate] = useState("2026-01-20");
     const [isGenerating, setIsGenerating] = useState(false);
 
+    // Processed Schedule for Display and Export
+    const processedSchedule = useMemo(() => {
+        // 1. Sort
+        const sorted = [...schedule].sort((a, b) => {
+            const timeA = new Date(a.timeSlot.startTime).getTime();
+            const timeB = new Date(b.timeSlot.startTime).getTime();
+            if (timeA !== timeB) return timeA - timeB;
+
+            // Then by Major (Filière)
+            const majorA = a.exam.subject.cohort.major;
+            const majorB = b.exam.subject.cohort.major;
+            if (majorA !== majorB) return majorA.localeCompare(majorB);
+
+            // Then by Level (Niveau)
+            const levelA = a.exam.subject.cohort.level;
+            const levelB = b.exam.subject.cohort.level;
+            if (levelA !== levelB) return levelA.localeCompare(levelB);
+
+            // Then by Code
+            return a.exam.subject.code.localeCompare(b.exam.subject.code);
+        });
+
+        // 2. Calculate RowSpans
+        const rows = sorted.map(item => {
+            const date = new Date(item.timeSlot.startTime).toLocaleDateString("fr-FR", {
+                weekday: "long", day: "numeric", month: "long"
+            });
+            const time = new Date(item.timeSlot.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+            return {
+                id: item.id,
+                date,
+                time,
+                level: item.exam.subject.cohort.level,
+                code: item.exam.subject.code,
+                major: item.exam.subject.cohort.major,
+                room: item.room.name,
+                size: item.exam.subject.cohort.size,
+                raw: item,
+                spans: {
+                    date: 1,
+                    time: 1,
+                    major: 1,
+                    level: 1,
+                    code: 1
+                }
+            };
+        });
+
+        // Traverse to calculate spans
+        for (let i = 0; i < rows.length; i++) {
+            // DATE SPAN
+            if (rows[i].spans.date > 0) {
+                let j = i + 1;
+                while (j < rows.length && rows[j].date === rows[i].date) {
+                    rows[i].spans.date++;
+                    rows[j].spans.date = 0;
+                    j++;
+                }
+            }
+
+            // TIME SPAN (Within same Date)
+            if (rows[i].spans.time > 0) {
+                let j = i + 1;
+                while (j < rows.length && rows[j].time === rows[i].time && rows[j].date === rows[i].date) {
+                    rows[i].spans.time++;
+                    rows[j].spans.time = 0;
+                    j++;
+                }
+            }
+
+            // MAJOR SPAN (Within same Time)
+            if (rows[i].spans.major > 0) {
+                let j = i + 1;
+                while (j < rows.length && rows[j].major === rows[i].major && rows[j].time === rows[i].time && rows[j].date === rows[i].date) {
+                    rows[i].spans.major++;
+                    rows[j].spans.major = 0;
+                    j++;
+                }
+            }
+
+            // LEVEL SPAN (Within same Major)
+            if (rows[i].spans.level > 0) {
+                let j = i + 1;
+                while (j < rows.length && rows[j].level === rows[i].level && rows[j].major === rows[i].major && rows[j].time === rows[i].time && rows[j].date === rows[i].date) {
+                    rows[i].spans.level++;
+                    rows[j].spans.level = 0;
+                    j++;
+                }
+            }
+
+            // CODE SPAN (Within same Level)
+            if (rows[i].spans.code > 0) {
+                let j = i + 1;
+                while (j < rows.length && rows[j].code === rows[i].code && rows[j].level === rows[i].level && rows[j].major === rows[i].major && rows[j].time === rows[i].time && rows[j].date === rows[i].date) {
+                    rows[i].spans.code++;
+                    rows[j].spans.code = 0;
+                    j++;
+                }
+            }
+        }
+
+        return rows;
+    }, [schedule]);
+
     const handleExportPDF = () => {
         const doc = new jsPDF();
         const sessionName = sessions.find(s => s.id === selectedSessionId)?.name || "Session";
         doc.setFontSize(18);
-        doc.text(`Planning des Examens - ${sessionName}`, 14, 15);
+        doc.text(`Planning - ${sessionName}`, 14, 15);
 
-        const tableData: any[] = [];
+        // Columns: Date, Heure, Filière, Niveau, Code UE, Salle, Effectif
+        const headers = [['Date', 'Heure', 'Filière', 'Niveau', 'Code UE', 'Salle', 'Effectif']];
+        const body = processedSchedule.map(row => {
+            const rowData: any[] = [];
 
-        // Group data just like in the UI
-        const grouped: Record<string, Record<string, ScheduleItem[]>> = {};
-        schedule.forEach(item => {
-            const date = new Date(item.timeSlot.startTime).toLocaleDateString("fr-FR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-            });
-            const hour = new Date(item.timeSlot.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+            if (row.spans.date > 0) {
+                rowData.push({ content: row.date.toUpperCase(), rowSpan: row.spans.date, styles: { valign: 'middle', fillColor: [248, 250, 252] as any } });
+            }
+            if (row.spans.time > 0) {
+                rowData.push({ content: row.time, rowSpan: row.spans.time, styles: { valign: 'middle' } });
+            }
+            if (row.spans.major > 0) {
+                rowData.push({ content: row.major, rowSpan: row.spans.major, styles: { valign: 'middle' } });
+            }
+            if (row.spans.level > 0) {
+                rowData.push({ content: row.level, rowSpan: row.spans.level, styles: { valign: 'middle' } });
+            }
+            if (row.spans.code > 0) {
+                rowData.push({ content: row.code, rowSpan: row.spans.code, styles: { valign: 'middle', fontStyle: 'bold' } });
+            }
 
-            if (!grouped[date]) grouped[date] = {};
-            if (!grouped[date][hour]) grouped[date][hour] = [];
-            grouped[date][hour].push(item);
-        });
+            rowData.push(row.room);
+            rowData.push(row.size);
 
-        Object.entries(grouped).forEach(([date, hours]) => {
-            // Add Date Header Row
-            tableData.push([
-                { content: date.toUpperCase(), colSpan: 6, styles: { fillColor: [241, 245, 249], fontStyle: 'bold', textColor: [15, 23, 42] } }
-            ]);
-
-            Object.entries(hours).forEach(([hour, items]) => {
-                items.forEach((item, idx) => {
-                    const row: any[] = [];
-                    if (idx === 0) {
-                        row.push({ content: hour, rowSpan: items.length, styles: { fontStyle: 'bold', textColor: [30, 41, 59] } });
-                    }
-                    row.push(item.exam.subject.code);
-                    row.push(`${item.exam.subject.title}\n(${item.exam.type})`);
-                    row.push(item.exam.subject.cohort.major);
-                    row.push(item.exam.subject.cohort.level);
-                    row.push(item.room.name);
-                    tableData.push(row);
-                });
-            });
+            return rowData;
         });
 
         autoTable(doc, {
             startY: 25,
-            head: [['Heure', 'Code', 'Examen', 'Filière', 'Niveau', 'Salle']],
-            body: tableData,
+            head: headers,
+            body: body,
             theme: 'grid',
             headStyles: { fillColor: [30, 41, 59], fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 3 },
+            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
             columnStyles: {
-                0: { cellWidth: 20 },
-                1: { cellWidth: 25 },
-                2: { cellWidth: 50 },
-                5: { cellWidth: 25 }
-            }
+                0: { cellWidth: 30 },
+                1: { cellWidth: 15 },
+                2: { cellWidth: 40 },
+                3: { cellWidth: 15 },
+                4: { cellWidth: 25 },
+                5: { cellWidth: 30 },
+                6: { cellWidth: 15 },
+            },
         });
 
         doc.save(`Planning_${sessionName.replace(/\s+/g, '_')}.pdf`);
@@ -120,66 +216,61 @@ export default function SchedulePage() {
         const merges: XLSX.Range[] = [];
 
         // Header Row
-        data.push(['Planning des Examens - ' + sessionName]);
-        merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
-        data.push([]); // Empty row
-        data.push(['Heure', 'Code', 'Examen', 'Filière', 'Niveau', 'Salle']);
+        data.push(['Planning - ' + sessionName]);
+        merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } });
+        data.push([]);
 
-        let currentRow = 3;
+        // Columns: Date, Heure, Filière, Niveau, Code UE, Salle, Effectif
+        const headers = ['Date', 'Heure', 'Filière', 'Niveau', 'Code UE', 'Salle', 'Effectif'];
+        data.push(headers);
 
-        // Group data for Excel
-        const grouped: Record<string, Record<string, ScheduleItem[]>> = {};
-        schedule.forEach(item => {
-            const date = new Date(item.timeSlot.startTime).toLocaleDateString("fr-FR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-            });
-            const hour = new Date(item.timeSlot.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        let currentRow = 3; // 0-indexed, so 4th row
 
-            if (!grouped[date]) grouped[date] = {};
-            if (!grouped[date][hour]) grouped[date][hour] = [];
-            grouped[date][hour].push(item);
-        });
+        processedSchedule.forEach((row) => {
+            data.push([
+                row.date.toUpperCase(),
+                row.time,
+                row.major,
+                row.level,
+                row.code,
+                row.room,
+                row.size
+            ]);
 
-        Object.entries(grouped).forEach(([date, hours]) => {
-            // Date Header
-            data.push([date.toUpperCase()]);
-            merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 5 } });
+            // Add merges
+            // Date (Col 0)
+            if (row.spans.date > 1) {
+                merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow + row.spans.date - 1, c: 0 } });
+            }
+            // Time (Col 1)
+            if (row.spans.time > 1) {
+                merges.push({ s: { r: currentRow, c: 1 }, e: { r: currentRow + row.spans.time - 1, c: 1 } });
+            }
+            // Major (Col 2)
+            if (row.spans.major > 1) {
+                merges.push({ s: { r: currentRow, c: 2 }, e: { r: currentRow + row.spans.major - 1, c: 2 } });
+            }
+            // Level (Col 3)
+            if (row.spans.level > 1) {
+                merges.push({ s: { r: currentRow, c: 3 }, e: { r: currentRow + row.spans.level - 1, c: 3 } });
+            }
+            // Code (Col 4)
+            if (row.spans.code > 1) {
+                merges.push({ s: { r: currentRow, c: 4 }, e: { r: currentRow + row.spans.code - 1, c: 4 } });
+            }
+
             currentRow++;
-
-            Object.entries(hours).forEach(([hour, items]) => {
-                const hourStartRow = currentRow;
-                items.forEach((item) => {
-                    data.push([
-                        hour,
-                        item.exam.subject.code,
-                        `${item.exam.subject.title} (${item.exam.type})`,
-                        item.exam.subject.cohort.major,
-                        item.exam.subject.cohort.level,
-                        item.room.name
-                    ]);
-                    currentRow++;
-                });
-
-                if (items.length > 1) {
-                    merges.push({ s: { r: hourStartRow, c: 0 }, e: { r: currentRow - 1, c: 0 } });
-                }
-            });
         });
+
+        // Clean up data for spanned cells (Excel expects value in top-left, others can be empty or same)
+        // Actually, for Excel merge, we just need to verify we aren't overwriting. 
+        // Logic above pushes data every row. It's fine, merges will just cover them. 
+        // Ideally we should empty the spanned cells for clarity if unmerged, but with native merge it doesn't matter visually.
 
         const ws = XLSX.utils.aoa_to_sheet(data);
         ws['!merges'] = merges;
-
-        // Column widths
-        ws['!cols'] = [
-            { wch: 10 }, // Heure
-            { wch: 15 }, // Code
-            { wch: 40 }, // Examen
-            { wch: 20 }, // Filière
-            { wch: 10 }, // Niveau
-            { wch: 15 }  // Salle
-        ];
+        // Adjusted widths: Date, Time, Major, Level, Code, Room, Size
+        ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 20 }, { wch: 10 }];
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Planning");
@@ -232,17 +323,19 @@ export default function SchedulePage() {
         }
     };
 
-    // Group by date
-    const groupedSchedule: Record<string, ScheduleItem[]> = {};
-    schedule.forEach((item) => {
-        const d = new Date(item.timeSlot.startTime).toLocaleDateString("fr-FR", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-        });
-        if (!groupedSchedule[d]) groupedSchedule[d] = [];
-        groupedSchedule[d].push(item);
-    });
+    const handleDeleteSession = async () => {
+        if (!selectedSessionId) return;
+
+        if (confirm("Êtes-vous sûr de vouloir supprimer cette session de planning ? Cette action est irréversible.")) {
+            const result = await deleteSession(selectedSessionId);
+            if (result.success) {
+                // Refresh list
+                await fetchInitialData();
+            } else {
+                alert("Erreur lors de la suppression : " + result.error);
+            }
+        }
+    };
 
     return (
         <div className="space-y-6 pb-20">
@@ -291,6 +384,15 @@ export default function SchedulePage() {
                                 </option>
                             ))}
                         </select>
+                        {selectedSessionId && (
+                            <button
+                                onClick={handleDeleteSession}
+                                className="p-2 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                                title="Supprimer cette session"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
 
                     <button
@@ -317,81 +419,75 @@ export default function SchedulePage() {
             ) : (
                 <div className="space-y-12">
                     {viewMode === "card" ? (
-                        Object.entries(groupedSchedule).map(([date, items]) => (
-                            <div key={date} className="space-y-4">
-                                <h3 className="flex items-center text-lg font-bold capitalize text-slate-900">
-                                    <Calendar className="mr-2 h-5 w-5" style={{ color: primaryColor }} />
-                                    {date}
-                                </h3>
-
-                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                                    {items.map((item) => (
-                                        <CardItem key={item.id} item={item} primaryColor={primaryColor} />
-                                    ))}
-                                </div>
-                            </div>
-                        ))
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                            {processedSchedule.map((item) => (
+                                <CardItem key={item.id} item={item.raw} primaryColor={primaryColor} />
+                            ))}
+                        </div>
                     ) : (
                         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                             <table className="min-w-full divide-y divide-slate-200">
                                 <thead className="bg-slate-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Date</th>
                                         <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Heure</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">UE / Examen</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">FILIERE</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Filière</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Niveau</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Code UE</th>
                                         <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Salle</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Effectif</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white">
-                                    {Object.entries(groupedSchedule).map(([date, dateItems]) => {
-                                        // Within each date, further group by hour
-                                        const hourGroups: Record<string, ScheduleItem[]> = {};
-                                        dateItems.forEach(item => {
-                                            const hour = new Date(item.timeSlot.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-                                            if (!hourGroups[hour]) hourGroups[hour] = [];
-                                            hourGroups[hour].push(item);
-                                        });
-
-                                        return (
-                                            <React.Fragment key={date}>
-                                                {/* Date Header Row */}
-                                                <tr className="bg-slate-100/50">
-                                                    <td colSpan={4} className="px-6 py-2 text-sm font-black text-slate-900 uppercase tracking-widest border-y border-slate-200">
-                                                        {date}
-                                                    </td>
-                                                </tr>
-                                                {Object.entries(hourGroups).map(([hour, hourItems]) => (
-                                                    <React.Fragment key={hour}>
-                                                        {hourItems.map((item, idx) => (
-                                                            <tr key={item.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-slate-200">
-                                                                {idx === 0 ? (
-                                                                    <td
-                                                                        rowSpan={hourItems.length}
-                                                                        className="whitespace-nowrap px-6 py-4 text-sm font-black text-slate-900 border-r border-slate-100 align-top"
-                                                                        style={{ color: primaryColor }}
-                                                                    >
-                                                                        {hour}
-                                                                    </td>
-                                                                ) : null}
-                                                                <td className="px-6 py-4">
-                                                                    <div className="text-sm font-bold text-slate-900">{item.exam.subject.code}</div>
-                                                                    <div className="text-xs text-slate-500">{item.exam.subject.title} ({item.exam.type})</div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                                    <div className="font-medium text-slate-900">{item.exam.subject.cohort.major}</div>
-                                                                    <div className="text-xs text-slate-500">{item.exam.subject.cohort.level}</div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                                    <span className="font-bold text-slate-800">{item.room.name}</span>
-                                                                    <span className="block text-xs text-slate-400">{item.room.location}</span>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </React.Fragment>
-                                                ))}
-                                            </React.Fragment>
-                                        );
-                                    })}
+                                <tbody className="bg-white divide-y divide-slate-100">
+                                    {processedSchedule.map((row) => (
+                                        <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                                            {row.spans.date > 0 && (
+                                                <td
+                                                    rowSpan={row.spans.date}
+                                                    className="px-6 py-4 text-sm font-bold text-slate-900 border-r border-slate-100 align-top uppercase"
+                                                    style={{ backgroundColor: '#f8fafc' }}
+                                                >
+                                                    {row.date}
+                                                </td>
+                                            )}
+                                            {row.spans.time > 0 && (
+                                                <td
+                                                    rowSpan={row.spans.time}
+                                                    className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap align-top font-medium"
+                                                >
+                                                    {row.time}
+                                                </td>
+                                            )}
+                                            {row.spans.major > 0 ? (
+                                                <td
+                                                    rowSpan={row.spans.major}
+                                                    className="px-6 py-4 text-sm text-slate-700 align-middle"
+                                                >
+                                                    {row.major}
+                                                </td>
+                                            ) : null}
+                                            {row.spans.level > 0 && (
+                                                <td
+                                                    rowSpan={row.spans.level}
+                                                    className="px-6 py-4 text-sm text-slate-700 align-top"
+                                                >
+                                                    {row.level}
+                                                </td>
+                                            )}
+                                            {row.spans.code > 0 ? (
+                                                <td
+                                                    rowSpan={row.spans.code}
+                                                    className="px-6 py-4 text-sm font-bold text-slate-900 align-middle"
+                                                >
+                                                    {row.code}
+                                                </td>
+                                            ) : null}
+                                            <td className="px-6 py-4 text-sm text-slate-700">
+                                                <span className="font-medium text-slate-900">{row.room}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-slate-700">{row.size}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -401,7 +497,7 @@ export default function SchedulePage() {
 
             {/* Floating Action Bar */}
             {schedule.length > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md transition-all">
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md transition-all z-50">
                     <div className="flex items-center gap-2 px-3 pr-5 border-r border-slate-700">
                         <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
                         <span>{schedule.length} sessions</span>
@@ -497,18 +593,28 @@ function CardItem({ item, primaryColor }: { item: ScheduleItem; primaryColor: st
         minute: "2-digit",
     });
 
+    const date = new Date(item.timeSlot.startTime).toLocaleDateString("fr-FR", {
+        weekday: "short",
+        day: "numeric"
+    });
+
     return (
         <div
             className="group flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
             style={{ borderLeft: `4px solid ${primaryColor}` }}
         >
             <div className="flex items-center justify-between">
-                <span
-                    className="inline-flex items-center rounded-md px-2 py-1 text-xs font-bold uppercase"
-                    style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}
-                >
-                    {startTime}
-                </span>
+                <div className="flex gap-2">
+                    <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-bold uppercase bg-slate-100 text-slate-600">
+                        {date}
+                    </span>
+                    <span
+                        className="inline-flex items-center rounded-md px-2 py-1 text-xs font-bold uppercase"
+                        style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}
+                    >
+                        {startTime}
+                    </span>
+                </div>
                 <span className="text-xs font-medium text-slate-400">
                     {item.exam.type}
                 </span>

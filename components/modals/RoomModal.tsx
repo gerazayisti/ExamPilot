@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { createRoom } from "@/app/actions/rooms";
+import { createRoom, updateRoom } from "@/app/actions/rooms";
 import { Loader2 } from "lucide-react";
 import { useBranding } from "@/components/providers/BrandingProvider";
 
 interface RoomModalProps {
     isOpen: boolean;
     onClose: () => void;
+    room?: {
+        id: string;
+        name: string;
+        capacity: number;
+        location: string;
+        type: string;
+    };
 }
 
 const ROOM_TYPES = [
@@ -18,7 +25,7 @@ const ROOM_TYPES = [
     "Salle de conférence",
 ];
 
-export function RoomModal({ isOpen, onClose }: RoomModalProps) {
+export function RoomModal({ isOpen, onClose, room }: RoomModalProps) {
     const { primaryColor } = useBranding();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +34,12 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
         setIsSubmitting(true);
         setError(null);
 
-        const result = await createRoom(formData);
+        let result;
+        if (room) {
+            result = await updateRoom(room.id, formData);
+        } else {
+            result = await createRoom(formData);
+        }
 
         setIsSubmitting(false);
 
@@ -39,7 +51,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Ajouter une Salle">
+        <Modal isOpen={isOpen} onClose={onClose} title={room ? "Modifier la Salle" : "Ajouter une Salle"}>
             <form action={handleSubmit} className="space-y-4">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-slate-700">
@@ -50,6 +62,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
                         name="name"
                         id="name"
                         required
+                        defaultValue={room?.name}
                         placeholder="Ex: Amphi A, B204"
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
@@ -64,6 +77,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
                         name="capacity"
                         id="capacity"
                         required
+                        defaultValue={room?.capacity}
                         min="1"
                         placeholder="Ex: 50"
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -79,6 +93,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
                         name="location"
                         id="location"
                         required
+                        defaultValue={room?.location}
                         placeholder="Ex: Bâtiment Sciences"
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
@@ -92,6 +107,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
                         name="type"
                         id="type"
                         required
+                        defaultValue={room?.type}
                         className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                         {ROOM_TYPES.map((type) => (
@@ -123,7 +139,7 @@ export function RoomModal({ isOpen, onClose }: RoomModalProps) {
                         style={{ backgroundColor: primaryColor }}
                     >
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Enregistrer
+                        {room ? "Mettre à jour" : "Enregistrer"}
                     </button>
                 </div>
             </form>

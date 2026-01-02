@@ -3,8 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+import { getCurrentUser } from "@/lib/auth";
+
 export async function importRooms(data: any[]) {
     try {
+        const user = await getCurrentUser();
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const roomsToCreate = data.map((row) => ({
             name: String(row.nom || row.name || "").trim(),
             capacity: parseInt(row.capacite || row.capacity || "0"),
@@ -17,9 +22,14 @@ export async function importRooms(data: any[]) {
         await prisma.$transaction(
             roomsToCreate.map((room) =>
                 prisma.room.upsert({
-                    where: { name: room.name },
+                    where: {
+                        name_userId: {
+                            name: room.name,
+                            userId: user.id
+                        }
+                    },
                     update: room,
-                    create: room,
+                    create: { ...room, userId: user.id },
                 })
             )
         );
@@ -34,6 +44,9 @@ export async function importRooms(data: any[]) {
 
 export async function importCohortsAndSubjects(data: any[]) {
     try {
+        const user = await getCurrentUser();
+        if (!user) return { success: false, error: "Unauthorized" };
+
         // Data format expected: Major, Level, Code, Title, Duration, Type
         // We group by Cohort (Major + Level)
         const cohortsMap = new Map<string, { major: string, level: string, size: number, subjects: any[] }>();
@@ -66,23 +79,30 @@ export async function importCohortsAndSubjects(data: any[]) {
                 // Find or create cohort
                 const cohort = await tx.cohort.upsert({
                     where: {
-                        major_level: {
+                        major_level_userId: {
                             major: cohortData.major,
-                            level: cohortData.level
+                            level: cohortData.level,
+                            userId: user.id
                         }
                     },
                     update: {}, // Don't update major/level
                     create: {
                         major: cohortData.major,
                         level: cohortData.level,
-                        size: cohortData.size // utilise la vraie taille si présente
+                        size: cohortData.size, // utilise la vraie taille si présente
+                        userId: user.id
                     }
                 });
 
                 // Create subjects for this cohort
                 for (const sub of cohortData.subjects) {
-                    await tx.subject.upsert({
-                        where: { code: sub.code },
+                    const subject = await tx.subject.upsert({
+                        where: {
+                            code_userId: {
+                                code: sub.code,
+                                userId: user.id
+                            }
+                        },
                         update: {
                             title: sub.title,
                             cohortId: cohort.id
@@ -90,30 +110,31 @@ export async function importCohortsAndSubjects(data: any[]) {
                         create: {
                             code: sub.code,
                             title: sub.title,
-                            cohortId: cohort.id
+                            cohortId: cohort.id,
+                            userId: user.id
                         }
                     });
 
-                    // Find subject again to get ID for Exam creation
-                    const subject = await tx.subject.findUnique({ where: { code: sub.code } });
-                    if (subject) {
-                        await tx.exam.upsert({
-                            where: {
-                                subjectId_type: {
-                                    subjectId: subject.id,
-                                    type: sub.type
-                                }
-                            },
-                            update: { duration: sub.duration },
-                            create: {
+                    // We use the subject returned by upsert directly
+                    await tx.exam.upsert({
+                        where: {
+                            subjectId_type: {
                                 subjectId: subject.id,
-                                type: sub.type,
-                                duration: sub.duration
+                                type: sub.type
                             }
-                        });
-                    }
+                        },
+                        update: { duration: sub.duration, userId: user.id }, // Ensure userId is set/updated
+                        create: {
+                            subjectId: subject.id,
+                            type: sub.type,
+                            duration: sub.duration,
+                            userId: user.id
+                        }
+                    });
                 }
             }
+        }, {
+            timeout: 20000 // Increase timeout to 20 seconds
         });
 
         revalidatePath("/dashboard/cohorts");

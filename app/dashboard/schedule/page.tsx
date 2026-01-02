@@ -13,6 +13,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import React from "react";
 
 interface ScheduleItem {
@@ -339,6 +340,7 @@ export default function SchedulePage() {
 
     return (
         <div className="space-y-6 pb-20">
+            <OnboardingTour />
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">Planning des Examens</h2>
@@ -372,6 +374,7 @@ export default function SchedulePage() {
                     <div className="flex items-center gap-2">
                         <History className="h-4 w-4 text-slate-400" />
                         <select
+                            id="schedule-session-select"
                             value={selectedSessionId}
                             onChange={handleSessionChange}
                             className="rounded-md border-slate-300 bg-white py-1.5 pl-3 pr-8 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 transition-all"
@@ -396,6 +399,7 @@ export default function SchedulePage() {
                     </div>
 
                     <button
+                        id="schedule-new-session-btn"
                         onClick={() => setIsGenModalOpen(true)}
                         className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: primaryColor }}

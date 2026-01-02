@@ -5,6 +5,7 @@ import { Plus, Trash2, Clock, FileText, Users, Loader2 } from "lucide-react";
 import { ExamModal } from "@/components/modals/ExamModal";
 import { getExams, deleteExam } from "@/app/actions/exams";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 interface Exam {
     id: string;
@@ -55,12 +56,14 @@ export default function ExamsPage() {
 
     return (
         <div className="space-y-6">
+            <OnboardingTour />
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">Examens à Planifier</h2>
                     <p className="mt-1 text-slate-500">Définissez les épreuves pour la session d'examen.</p>
                 </div>
                 <button
+                    id="exams-add-btn"
                     onClick={() => setIsModalOpen(true)}
                     className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                     style={{ backgroundColor: primaryColor }}

@@ -1,0 +1,162 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+
+% Configuration de la page
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+% Couleurs personnalisées (Inspirées du thème Exam-Pilot)
+\definecolor{primaryBlue}{RGB}{59, 130, 246} % #3b82f6
+\definecolor{darkSlate}{RGB}{30, 41, 59}    % #1e293b
+
+% Configuration des liens
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryBlue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% En-tête et pied de page
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{Guide de l'Utilisateur}}
+\lhead{\textbf{Exam-Pilot}}
+\cfoot{\thepage}
+
+% Titres
+\titleformat{\section}
+{\color{darkSlate}\normalfont\Large\bfseries}
+{\thesection}{1em}{}
+
+\titleformat{\subsection}
+{\color{primaryBlue}\normalfont\large\bfseries}
+{\thesubsection}{1em}{}
+
+\title{
+    \vspace*{2cm}
+    \Huge \textbf{\textcolor{darkSlate}{Exam-Pilot}}\\
+    \vspace{0.5cm}
+    \large \textit{Le Pilote Automatique de vos Examens Universitaires}\\
+    \vspace{2cm}
+    \textbf{Guide de l'Utilisateur}\\
+    \vspace{0.5cm}
+    \small Version 1.0
+}
+\author{Équipe Exam-Pilot}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Bienvenue sur \textbf{Exam-Pilot}. Ce logiciel a été conçu avec une mission simple : transformer le cauchemar logistique de la planification des examens en une tâche simple, rapide et sans erreur.
+
+Exam-Pilot n'est pas un simple calendrier. C'est un assistant intelligent capable de :
+\begin{itemize}
+    \item Gérer vos salles, promotions et matières.
+    \item Générer automatiquement un emploi du temps optimal sans conflits.
+    \item Respecter les contraintes pédagogiques (espacement des examens, capacité des salles).
+    \item Produire des documents officiels (PDF, Excel) prêts à être affichés.
+\end{itemize}
+
+Ce guide vous accompagnera dans la prise en main de l'outil, étape par étape.
+
+\section{Premiers Pas}
+
+\subsection{Accès et Connexion}
+Pour accéder à Exam-Pilot, rendez-vous sur l'adresse fournie par votre administrateur (ou localhost en développement).
+\begin{enumerate}
+    \item **Inscription** : Lors de votre première visite, créez un compte en renseignant votre email, le nom de votre établissement et un mot de passe sécurisé.
+    \item **Connexion** : Utilisez vos identifiants pour accéder à votre espace sécurisé.
+\end{enumerate}
+
+\subsection{Le Tableau de Bord}
+Une fois connecté, vous arrivez sur le \textbf{Tableau de Bord} (Dashboard). C'est votre tour de contrôle. Vous y trouverez un résumé rapide de vos ressources : nombre de salles, de promotions enregistrées et la dernière session de planning générée.
+
+\section{Gestion des Ressources}
+Avant de pouvoir planifier des examens, vous devez dire à Exam-Pilot de quelles ressources vous disposez.
+
+\subsection{Les Salles (Rooms)}
+Allez dans l'onglet \textbf{Salles}. C'est ici que vous listez les espaces physiques disponibles.
+\begin{itemize}
+    \item Cliquez sur "Ajouter une salle".
+    \item Renseignez le nom (ex: "Amphi 300"), la capacité (nombre de places) et le type.
+    \item \textbf{Astuce} : Soyez précis sur la capacité. L'algorithme l'utilise pour savoir s'il peut placer un groupe d'étudiants dans cette salle.
+\end{itemize}
+
+\subsection{Les Promotions (Cohortes)}
+L'onglet \textbf{Promotions} concerne vos étudiants. Une "Cohorte" est un groupe d'étudiants (ex: "Licence 1 - Informatique").
+\begin{itemize}
+    \item Créez une nouvelle cohorte en indiquant la filière, le niveau et l'effectif global.
+    \item Une fois la cohorte créée, vous pourrez lui associer des \textbf{Unités d'Enseignement (UE)}. Ce sont les matières qui feront l'objet d'un examen.
+\end{itemize}
+
+\subsection{Import en Masse (Excel)}
+Saisir les données élément par élément peut être fastidieux. Exam-Pilot propose une fonctionnalité d'importation rapide :
+\begin{enumerate}
+    \item Cliquez sur le bouton \textbf{"Importer"} dans l'onglet Salles ou Promotions.
+    \item Téléchargez le \textbf{modèle Excel} fourni.
+    \item Remplissez vos données (Nom, Capacité, ou Filière, Niveau, Effectif...) dans le fichier.
+    \item Chargez le fichier rempli. Vos données seront ajoutées instantanément.
+\end{enumerate}
+
+\section{Génération du Planning Automatique}
+C'est le cœur du système. Une fois vos salles et matières configurées, laissez la magie opérer.
+
+\subsection{Lancer une Session}
+Rendez-vous dans l'onglet \textbf{Planning}.
+\begin{enumerate}
+    \item Cliquez sur \textbf{"Nouvelle Session"}.
+    \item Donnez un nom à votre session (ex: "Examens Semestre 1 - 2026").
+    \item Choisissez la \textbf{date de début} et la \textbf{date de fin} de la période d'examens.
+    \item Cliquez sur "Générer".
+\end{enumerate}
+
+\subsection{Ce que fait l'Algorithme}
+La génération est ultra-rapide (environ 3 secondes chrono pour un planning standard). Pendant ce court instant, Exam-Pilot effectue des milliers de calculs pour :
+\begin{itemize}
+    \item \textbf{Éviter les conflits} : Une salle n'est jamais réservée deux fois en même temps.
+    \item \textbf{Optimiser l'espace} : Il choisit la salle la plus adaptée à la taille de la promo.
+    \item \textbf{Diversifier} : Il essaie de ne pas faire passer tous les examens d'une même filière le même jour, pour le confort des étudiants.
+    \item \textbf{Respecter les distances} : Si vous avez activé l'option, il laisse un siège vide entre chaque étudiant (paramétrable).
+\end{itemize}
+
+\section{Visualisation et Export}
+
+\subsection{Vue Tableau}
+Une fois le planning généré, il s'affiche sous forme de tableau clair, trié par Date et Heure. Les informations identiques (Date, Heure, Filière) sont regroupées visuellement pour une lecture facile.
+
+\subsection{Exports PDF et Excel}
+Vous avez besoin d'imprimer le planning ou de l'envoyer par email ?
+\begin{itemize}
+    \item \textbf{Exporter en PDF} : Génère un document propre, formaté professionnellement avec en-têtes et colonnes parfaitement alignées, prêt à être affiché sur les murs de l'université.
+    \item \textbf{Exporter en Excel} : Génère un fichier .xlsx modifiable si vous avez besoin de faire des ajustements manuels de dernière minute.
+\end{itemize}
+
+\section{Paramètres Avancés}
+Dans l'onglet \textbf{Paramètres}, vous pouvez personnaliser l'expérience :
+\begin{itemize}
+    \item \textbf{Identité} : Changez le nom de l'établissement et la couleur principale de l'interface.
+    \item \textbf{Anti-triche} : Configurez l'espace entre les étudiants ("Gap"). Par exemple, réglez sur "1" pour laisser une chaise vide entre chaque étudiant lors du calcul de capacité des salles.
+\end{itemize}
+
+\vspace{2cm}
+\begin{center}
+    \textit{Exam-Pilot : Laissez l'informatique gérer la complexité, concentrez-vous sur la pédagogie.}
+\end{center}
+
+\end{document}

@@ -7,6 +7,7 @@ import { ImportModal } from "@/components/modals/ImportModal";
 import { getRooms, deleteRoom } from "@/app/actions/rooms";
 import { importRooms } from "@/app/actions/import";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 interface Room {
     id: string;
@@ -66,6 +67,7 @@ export default function RoomsPage() {
 
     return (
         <div className="space-y-6">
+            <OnboardingTour />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">Gestion des Salles</h2>
@@ -73,6 +75,7 @@ export default function RoomsPage() {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        id="rooms-import-btn"
                         onClick={() => setIsImportModalOpen(true)}
                         className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors"
                     >
@@ -80,6 +83,7 @@ export default function RoomsPage() {
                         Importer
                     </button>
                     <button
+                        id="rooms-add-btn"
                         onClick={handleAdd}
                         className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: primaryColor }}
@@ -97,6 +101,7 @@ export default function RoomsPage() {
                         <Search className="h-5 w-5 text-slate-400" />
                     </div>
                     <input
+                        id="rooms-search-input"
                         type="text"
                         placeholder="Rechercher une salle..."
                         value={searchQuery}

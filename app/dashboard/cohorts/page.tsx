@@ -8,6 +8,7 @@ import { ImportModal } from "@/components/modals/ImportModal";
 import { getCohorts, deleteCohort } from "@/app/actions/cohorts";
 import { importCohortsAndSubjects } from "@/app/actions/import";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 interface Cohort {
     id: string;
@@ -70,6 +71,7 @@ export default function CohortsPage() {
 
     return (
         <div className="space-y-6">
+            <OnboardingTour />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">Cohortes & UE</h2>
@@ -77,6 +79,7 @@ export default function CohortsPage() {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        id="cohorts-import-btn"
                         onClick={() => setIsImportModalOpen(true)}
                         className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors"
                     >
@@ -84,6 +87,7 @@ export default function CohortsPage() {
                         Importer
                     </button>
                     <button
+                        id="cohorts-add-btn"
                         onClick={handleAdd}
                         className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: primaryColor }}
@@ -101,6 +105,7 @@ export default function CohortsPage() {
                         <Search className="h-5 w-5 text-slate-400" />
                     </div>
                     <input
+                        id="cohorts-search-input"
                         type="text"
                         placeholder="Rechercher une filière..."
                         value={searchQuery}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Building2, Users, BookOpen, CalendarCheck, Loader2 } from "lucide-react";
 import { getDashboardStats } from "@/app/actions/stats";
 import { useBranding } from "@/components/providers/BrandingProvider";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 export default function DashboardPage() {
     const { primaryColor } = useBranding();
@@ -41,12 +42,13 @@ export default function DashboardPage() {
     }
     return (
         <div className="space-y-8">
+            <OnboardingTour />
             <div>
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900">Tableau de Bord</h2>
                 <p className="mt-2 text-lg text-slate-600">Bienvenue sur ExamPilot. Configurez vos ressources pour commencer.</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div id="dashboard-stats-grid" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {statConfig.map((stat) => (
                     <div key={stat.name} className="overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5 transition-all hover:shadow-md">
                         <div className="flex items-center gap-4">

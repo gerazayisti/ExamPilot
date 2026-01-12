@@ -34,6 +34,8 @@ model Settings {
   logoUrl      String? // Base64 or URL
   primaryColor String   @default("#3b82f6")
   examInterStudentGap Int @default(0) // 0 = no gap, 1 = 1 empty seat between students
+  maxExamsPerDay      Int @default(2) // Maximum number of exams a student can take in a day
+  maxConsecutiveExams Int @default(2) // Maximum number of consecutive exams without break
   updatedAt    DateTime @updatedAt
   
   userId       String?  @unique

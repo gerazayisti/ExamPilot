@@ -38,6 +38,8 @@ interface UpdateSettingsData {
     primaryColor: string;
     logoUrl?: string;
     examInterStudentGap?: number;
+    maxExamsPerDay?: number;
+    maxConsecutiveExams?: number;
 }
 
 export async function updateSettings(data: UpdateSettingsData) {
@@ -52,12 +54,16 @@ export async function updateSettings(data: UpdateSettingsData) {
                 primaryColor: data.primaryColor,
                 logoUrl: data.logoUrl,
                 examInterStudentGap: data.examInterStudentGap ?? 0,
+                maxExamsPerDay: data.maxExamsPerDay ?? 2,
+                maxConsecutiveExams: data.maxConsecutiveExams ?? 2,
             },
             create: {
                 appName: data.appName,
                 primaryColor: data.primaryColor,
                 logoUrl: data.logoUrl,
                 examInterStudentGap: data.examInterStudentGap ?? 0,
+                maxExamsPerDay: data.maxExamsPerDay ?? 2,
+                maxConsecutiveExams: data.maxConsecutiveExams ?? 2,
                 userId: user.id
             },
         });

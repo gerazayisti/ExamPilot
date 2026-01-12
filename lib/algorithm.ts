@@ -60,25 +60,23 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
         where: { userId }
     });
     const gap = settings?.examInterStudentGap ?? 0;
+    const maxExamsPerDay = settings?.maxExamsPerDay ?? 2;
+    const maxConsecutiveExams = settings?.maxConsecutiveExams ?? 2;
 
     // 2. Tri des examens par difficulté (taille décroissante, puis par contraintes)
     const sortedExams = [...exams].sort((a, b) => {
-        // Priorité 1: Taille de cohorte (décroissant)
+        // ... sort logic remains same
         const sizeDiff = b.subject.cohort.size - a.subject.cohort.size;
         if (sizeDiff !== 0) return sizeDiff;
-
-        // Priorité 2: Durée (décroissant)
         const durationDiff = b.duration - a.duration;
         if (durationDiff !== 0) return durationDiff;
-
-        // Priorité 3: Par ordre aléatoire pour les égalités
         return Math.random() - 0.5;
     });
 
     // 3. Pré-calculer les capacités des salles par créneau
     const daysInRange = getDatesInRange(startDate, endDate);
 
-    // Structures de suivi améliorées
+    // Structures de suivi
     const cohortBookings = new Set<string>(); // "cohortId-date-slotIndex"
     const roomBookings = new Set<string>();   // "roomId-date-slotIndex"
     const slotRoomUsage = new Map<string, Set<string>>(); // "date-slotIndex" -> Set(roomIds)
@@ -86,7 +84,7 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
     const results: any[] = [];
     const unplacedExams: ExamWithDetails[] = [];
 
-    // 4. Heuristique: Pré-filtrer les salles par capacité
+    // 4. Heuristique
     const roomsByCapacity = new Map<number, Room[]>();
     rooms.forEach(room => {
         if (!roomsByCapacity.has(room.capacity)) {
@@ -95,45 +93,57 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
         roomsByCapacity.get(room.capacity)!.push(room);
     });
 
-    // 5. Placement principal avec mécanisme de réessai
+    // 5. Placement principal
     for (const exam of sortedExams) {
         const cohortId = exam.subject.cohort.id;
         const cohortSize = exam.subject.cohort.size;
         let placed = false;
-
-        // 5a. Premier essai: Chercher le meilleur créneau (minimisant le gaspillage)
         const possiblePlacements: PlacementAttempt[] = [];
 
-        // Randomize day order slightly to avoid fixed patterns? 
-        // No, we will use score to handle it.
         for (let dayIndex = 0; dayIndex < daysInRange.length; dayIndex++) {
             const day = daysInRange[dayIndex];
             const dateStr = day.toISOString().split("T")[0];
 
-            // Calculate penalty for this day based on previous exams for this cohort
-            // Goal: Distribute exams for a cohort across different days
+            // Constraint 1: Max exams per day
             const dayUsage = cohortDayUsage.get(`${cohortId}-${dateStr}`) || 0;
-            const dayPenalty = dayUsage * 10000; // Heavy penalty for same day
+            if (dayUsage >= maxExamsPerDay) continue;
+
+            // Bonus for same day (encourage compact schedule)
+            // If they already have an exam today, we WANT to put the next one here.
+            const dayBonus = dayUsage > 0 ? -10000 : 0;
 
             for (let slotIndex = 0; slotIndex < TIME_SLOTS.length; slotIndex++) {
                 const cohortKey = `${cohortId}-${dateStr}-${slotIndex}`;
                 if (cohortBookings.has(cohortKey)) continue;
 
+                // Constraint 2: Max consecutive exams
+                // Check backwards
+                let streak = 1;
+                let prev = slotIndex - 1;
+                while (prev >= 0 && cohortBookings.has(`${cohortId}-${dateStr}-${prev}`)) {
+                    streak++;
+                    prev--;
+                }
+                // Check forwards
+                let next = slotIndex + 1;
+                while (next < TIME_SLOTS.length && cohortBookings.has(`${cohortId}-${dateStr}-${next}`)) {
+                    streak++;
+                    next++;
+                }
+
+                if (streak > maxConsecutiveExams) continue;
+
                 // Calculer les salles disponibles pour ce créneau
                 const slotKey = `${dateStr}-${slotIndex}`;
                 let availableRooms = rooms.filter(r => !roomBookings.has(`${r.id}-${dateStr}-${slotIndex}`));
 
-                // Stratégie: Optimiser l'occupation des salles
-                // Si certaines salles sont encore libres à ce créneau, prioriser leur utilisation
                 const usedRooms = slotRoomUsage.get(slotKey) || new Set();
                 const freeRooms = availableRooms.filter(r => !usedRooms.has(r.id));
 
-                // Essayer d'abord les salles pas encore utilisées aujourd'hui
                 if (freeRooms.length > 0) {
                     availableRooms = [...freeRooms, ...availableRooms.filter(r => !freeRooms.includes(r))];
                 }
 
-                // Évaluer les options de placement
                 const placementOptions = evaluatePlacementOptions(
                     cohortSize,
                     availableRooms,
@@ -145,10 +155,9 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
                     // Choisir l'option avec le moins de gaspillage
                     const bestOption = placementOptions.sort((a, b) => a.waste - b.waste)[0];
 
-                    // Calculate final score: Waste + DayPenalty + RandomFactor
-                    // RandomFactor (0-50) ensures we don't always pick Day 0 if wastes are equal (0 vs 0).
+                    // Calculate final score: Waste + DayBonus + RandomFactor
                     const randomFactor = Math.random() * 50;
-                    const score = bestOption.waste + dayPenalty + randomFactor;
+                    const score = bestOption.waste + dayBonus + randomFactor;
 
                     possiblePlacements.push({
                         examId: exam.id,
@@ -229,13 +238,40 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
             let placedInRetry = false;
 
             // Stratégie de réessai: Essayer de déplacer des examens moins contraignants
-            for (let dayIndex = 0; dayIndex < daysInRange.length && !placedInRetry; dayIndex++) {
-                const day = daysInRange[dayIndex];
+            // Prioritize days where the cohort ALREADY has exams (grouping)
+            const sortedRetryDays = [...daysInRange].sort((a, b) => {
+                const dateA = a.toISOString().split("T")[0];
+                const dateB = b.toISOString().split("T")[0];
+                const usageA = cohortDayUsage.get(`${cohortId}-${dateA}`) || 0;
+                const usageB = cohortDayUsage.get(`${cohortId}-${dateB}`) || 0;
+                return usageB - usageA; // Descending usage
+            });
+
+            for (let dayIndex = 0; dayIndex < sortedRetryDays.length && !placedInRetry; dayIndex++) {
+                const day = sortedRetryDays[dayIndex];
                 const dateStr = day.toISOString().split("T")[0];
+
+                // Constraint 1: Max exams per day
+                const dayUsage = cohortDayUsage.get(`${cohortId}-${dateStr}`) || 0;
+                if (dayUsage >= maxExamsPerDay) continue;
 
                 for (let slotIndex = 0; slotIndex < TIME_SLOTS.length && !placedInRetry; slotIndex++) {
                     const cohortKey = `${cohortId}-${dateStr}-${slotIndex}`;
                     if (cohortBookings.has(cohortKey)) continue;
+
+                    // Constraint 2: Max consecutive
+                    let streak = 1;
+                    let prev = slotIndex - 1;
+                    while (prev >= 0 && cohortBookings.has(`${cohortId}-${dateStr}-${prev}`)) {
+                        streak++;
+                        prev--;
+                    }
+                    let next = slotIndex + 1;
+                    while (next < TIME_SLOTS.length && cohortBookings.has(`${cohortId}-${dateStr}-${next}`)) {
+                        streak++;
+                        next++;
+                    }
+                    if (streak > maxConsecutiveExams) continue;
 
                     // Vérifier si on peut libérer des salles en déplaçant d'autres examens
                     const availableRooms = rooms.filter(r => !roomBookings.has(`${r.id}-${dateStr}-${slotIndex}`));
@@ -301,12 +337,25 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
                                     results.forEach((r, index) => {
                                         if (r.examId === examToMove.examId) {
                                             results.splice(index, 1);
+                                            // DECREMENT usage for the moved exam's cohort
+                                            if (examToMove.date) { // Ensure date is available (it should be)
+                                                const movedDateStr = examToMove.date.toISOString().split("T")[0];
+                                                const movedCohortId = originalExam?.subject.cohort.id;
+                                                if (movedCohortId) {
+                                                    const current = cohortDayUsage.get(`${movedCohortId}-${movedDateStr}`) || 0;
+                                                    if (current > 0) cohortDayUsage.set(`${movedCohortId}-${movedDateStr}`, current - 1);
+                                                }
+                                            }
                                         }
                                     });
 
                                     roomBookings.clear();
                                     newRoomBookings.forEach(v => roomBookings.add(v));
                                     cohortBookings.add(cohortKey);
+
+                                    // INCREMENT usage for the newly placed exam
+                                    const newCurrent = cohortDayUsage.get(`${cohortId}-${dateStr}`) || 0;
+                                    cohortDayUsage.set(`${cohortId}-${dateStr}`, newCurrent + 1);
 
                                     // Remettre l'examen déplacé dans la liste des non placés
                                     unplacedExams.push(originalExam);
@@ -338,6 +387,11 @@ export async function runScheduler(startDate: Date, endDate: Date, sessionName: 
                             }
 
                             cohortBookings.add(cohortKey);
+
+                            // INCREMENT usage for the newly placed exam
+                            const newCurrent = cohortDayUsage.get(`${cohortId}-${dateStr}`) || 0;
+                            cohortDayUsage.set(`${cohortId}-${dateStr}`, newCurrent + 1);
+
                             placedInRetry = true;
 
                             // Retirer de la liste des non placés

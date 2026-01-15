@@ -131,3 +131,23 @@ export async function createBatchExams(cohortIds: string[], duration: number, ty
         return { success: false, error: "Erreur lors de la création groupée" };
     }
 }
+
+export async function deleteExams(ids: string[]) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    if (!ids || ids.length === 0) return { success: true };
+
+    try {
+        await prisma.exam.deleteMany({
+            where: {
+                id: { in: ids },
+                userId: user.id
+            }
+        });
+        revalidatePath("/dashboard/exams");
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: "Failed to delete exams" };
+    }
+}

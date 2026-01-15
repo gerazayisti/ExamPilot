@@ -82,7 +82,7 @@ model Subject {
   userId   String?
   user     User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([code, userId])
+  @@unique([code, cohortId])
 }
 
 model Exam {

@@ -127,6 +127,37 @@ export function ExamModal({ isOpen, onClose }: ExamModalProps) {
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             Sélectionner les Cohortes
                         </label>
+
+                        {/* Quick Level Selection */}
+                        <div className="mb-3 flex flex-wrap gap-2">
+                            {Array.from(new Set(cohorts.map(c => c.level))).sort().map(level => (
+                                <button
+                                    key={level}
+                                    type="button"
+                                    onClick={() => {
+                                        const cohortsToSelect = cohorts.filter(c => c.level === level).map(c => c.id);
+                                        const allSelected = cohortsToSelect.every(id => selectedCohorts.includes(id));
+
+                                        if (allSelected) {
+                                            // Deselect all
+                                            setSelectedCohorts(prev => prev.filter(id => !cohortsToSelect.includes(id)));
+                                        } else {
+                                            // Select all
+                                            setSelectedCohorts(prev => [...new Set([...prev, ...cohortsToSelect])]);
+                                        }
+                                    }}
+                                    className="px-2 py-1 text-xs font-semibold rounded border transition-colors"
+                                    style={{
+                                        borderColor: primaryColor,
+                                        color: selectedCohorts.some(id => cohorts.find(c => c.id === id)?.level === level) ? "white" : primaryColor,
+                                        backgroundColor: selectedCohorts.some(id => cohorts.find(c => c.id === id)?.level === level) ? primaryColor : "transparent"
+                                    }}
+                                >
+                                    {level}
+                                </button>
+                            ))}
+                        </div>
+
                         <div className="max-h-48 overflow-y-auto rounded-md border border-slate-200 p-2 space-y-1">
                             {cohorts.map((cohort) => (
                                 <label key={cohort.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 cursor-pointer">

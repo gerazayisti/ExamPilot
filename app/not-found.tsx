@@ -8,9 +8,20 @@ import { useBranding } from "@/components/providers/BrandingProvider";
 export default function NotFound() {
     const { primaryColor } = useBranding();
     const [mounted, setMounted] = useState(false);
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
         setMounted(true);
+
+        const handleMouseMove = (e: MouseEvent) => {
+            setMousePosition({ x: e.clientX, y: e.clientY });
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+        };
     }, []);
 
     return (
@@ -18,14 +29,26 @@ export default function NotFound() {
             {/* Subtle background pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:64px_64px]"></div>
 
-            {/* Gentle glowing orbs using primary color */}
+            {/* Mouse follower glow */}
             <div
-                className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 animate-pulse"
-                style={{ backgroundColor: primaryColor }}
+                className="pointer-events-none fixed w-96 h-96 rounded-full blur-3xl opacity-30 transition-all duration-300 ease-out"
+                style={{
+                    backgroundColor: primaryColor,
+                    left: `${mousePosition.x}px`,
+                    top: `${mousePosition.y}px`,
+                    transform: 'translate(-50%, -50%)'
+                }}
             ></div>
+
+            {/* Secondary smaller glow */}
             <div
-                className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-10 animate-pulse"
-                style={{ backgroundColor: primaryColor, animationDelay: '1s' }}
+                className="pointer-events-none fixed w-64 h-64 rounded-full blur-2xl opacity-20 transition-all duration-500 ease-out"
+                style={{
+                    backgroundColor: primaryColor,
+                    left: `${mousePosition.x}px`,
+                    top: `${mousePosition.y}px`,
+                    transform: 'translate(-50%, -50%)'
+                }}
             ></div>
 
             {/* Content */}

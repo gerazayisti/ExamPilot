@@ -98,9 +98,9 @@ export async function importCohortsAndSubjects(data: any[]) {
                 for (const sub of cohortData.subjects) {
                     const subject = await tx.subject.upsert({
                         where: {
-                            code_userId: {
+                            code_cohortId: {
                                 code: sub.code,
-                                userId: user.id
+                                cohortId: cohort.id
                             }
                         },
                         update: {

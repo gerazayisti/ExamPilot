@@ -26,6 +26,18 @@ model User {
   sessions  PlanningSession[]
   subjects  Subject[]
   exams     Exam[]
+  logs      SystemLog[]
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "LOGIN", "CREATE_EXAM", "GENERATE_SCHEDULE"
+  details   String?  // JSON string or description
+  ip        String?
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Settings {
